@@ -105,7 +105,7 @@ fn context_eval<E: MultiMillerLoop, R: io::Read>(
         ($pos:expr) => {
             match $pos {
                 EvalPos::Ops(i) => it[*i].clone(),
-                _ => unreachable!(),
+                _ => (None, None),
             }
         };
     }
@@ -366,9 +366,18 @@ where
             instance_index += i.len()
         }
 
-        assert_eq!(instances[proof_index][instance_offset][g_index], encoded_c[0].val);
-        assert_eq!(instances[proof_index][instance_offset][g_index+1], encoded_c[1].val);
-        assert_eq!(instances[proof_index][instance_offset][g_index+2], encoded_c[2].val);
+        assert_eq!(
+            instances[proof_index][instance_offset][g_index],
+            encoded_c[0].val
+        );
+        assert_eq!(
+            instances[proof_index][instance_offset][g_index + 1],
+            encoded_c[1].val
+        );
+        assert_eq!(
+            instances[proof_index][instance_offset][g_index + 2],
+            encoded_c[2].val
+        );
 
         let instance_commit = il[instance_index].clone();
         let g0 = ctx.assign_constant_point(&params.g_lagrange[g_index].to_curve());

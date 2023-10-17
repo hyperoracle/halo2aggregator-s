@@ -71,7 +71,7 @@ impl<E: MultiMillerLoop, EC: EncodedChallenge<E::G1Affine>, T: TranscriptRead<E:
     fn eval_any_pos(&self, pos: &EvalPos) -> (Option<E::G1Affine>, Option<E::Scalar>) {
         match pos {
             EvalPos::Ops(i) => self.values[*i],
-            _ => unreachable!(),
+            _ => (None, None),
         }
     }
 
