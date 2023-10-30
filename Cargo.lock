@@ -615,12 +615,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "halo2_proofs"
+version = "0.1.0-beta.1"
+source = "git+https://github.com/hyperoracle/halo2-gpu-specific.git#24e7ede846af8429f6a090a90ce6f30383893b90"
+dependencies = [
+ "ark-std",
+ "blake2b_simd",
+ "bumpalo",
+ "cfg-if 0.1.10",
+ "core_affinity",
+ "cuda-driver-sys",
+ "ec-gpu-gen",
+ "ff",
+ "group",
+ "lazy_static",
+ "memmap",
+ "num",
+ "num-bigint",
+ "num-derive",
+ "num-integer",
+ "num-traits",
+ "pairing_bn256",
+ "rand",
+ "rand_core",
+ "rayon",
+ "subtle",
+]
+
+[[package]]
 name = "halo2aggregator-s"
 version = "0.1.0"
 dependencies = [
  "ark-std",
  "blake2b_simd",
- "halo2_proofs 0.1.0-beta.1 (git+https://github.com/DelphinusLab/halo2-gpu-specific.git)",
+ "halo2_proofs 0.1.0-beta.1 (git+https://github.com/hyperoracle/halo2-gpu-specific.git)",
  "halo2ecc-s",
  "lazy_static",
  "num-bigint",
