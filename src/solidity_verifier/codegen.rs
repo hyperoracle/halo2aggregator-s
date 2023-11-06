@@ -34,7 +34,7 @@ lazy_static! {
     )
     .unwrap();
     static ref MSM_BUF_SIZE: usize = usize::from_str_radix(
-        &env::var("HALO2_AGGREGATOR_S_MSM_BUF_SIZE").unwrap_or("30".to_owned()),
+        &env::var("HALO2_AGGREGATOR_S_MSM_BUF_SIZE").unwrap_or("5".to_owned()),
         10
     )
     .unwrap();
@@ -464,10 +464,7 @@ impl<R: Read, E: MultiMillerLoop> SolidityEvalContext<R, E> {
                     Some(SolidityVar::Temp(t))
                 }
                 EvalOps::MSM(psl) => {
-                    let start: usize = self
-                        .msm_len
-                        .iter()
-                        .fold(*TEMP_BUF_MAX as usize, |acc, x| acc + x * 3);
+                    let start: usize = *TEMP_BUF_MAX + self.msm_len.len() * *MSM_BUF_SIZE;
 
                     self.msm_index += 1;
                     self.msm_len.push(psl.len());
@@ -475,14 +472,26 @@ impl<R: Read, E: MultiMillerLoop> SolidityEvalContext<R, E> {
                     for (i, (p, s)) in psl.iter().enumerate() {
                         let p_str = self.pos_to_point_var(p).to_string(false);
                         let s_str = self.pos_to_scalar_var(s).to_string(true);
+
+                        let idx = if i == 0 { 0 } else { 2 };
+
                         self.statements.push(format!(
                             "(buf[{}], buf[{}]) = {};",
-                            start + i * 3,
-                            start + i * 3 + 1,
+                            start + idx,
+                            start + idx + 1,
                             p_str
                         ));
+
                         self.statements
-                            .push(format!("buf[{}] = {};", start + i * 3 + 2, s_str));
+                            .push(format!("buf[{}] = {};", start + idx + 2, s_str));
+
+                        if i > 0 {
+                            self.statements
+                                .push(format!("AggregatorLib.ecc_mul_add(buf, {});", start));
+                        } else {
+                            self.statements
+                                .push(format!("AggregatorLib.ecc_mul(buf, {});", start));
+                        }
 
                         if SOLIDITY_DEBUG {
                             let p_value = self.eval_point_pos(p).coordinates().unwrap();
@@ -523,8 +532,9 @@ pub fn solidity_codegen_with_proof<E: MultiMillerLoop>(
     instances: &Vec<E::Scalar>,
     proofs: Vec<u8>,
     tera_context: &mut tera::Context,
+    check: bool,
 ) -> Vec<String> {
-    let (w_x, w_g, _) = verify_aggregation_proofs(params, &[vkey]);
+    let (w_x, w_g, _) = verify_aggregation_proofs(params, &[vkey], &vec![]);
 
     let instance_commitments =
         instance_to_instance_commitment(params, &[vkey], vec![&vec![instances.clone()]])[0].clone();
@@ -542,18 +552,20 @@ pub fn solidity_codegen_with_proof<E: MultiMillerLoop>(
     ctx.value_gen();
     ctx.code_gen();
 
-    let s_g2_prepared = E::G2Prepared::from(params.s_g2);
-    let n_g2_prepared = E::G2Prepared::from(-params.g2);
-    let success = bool::from(
-        E::multi_miller_loop(&[
-            (&ctx.finals[0], &s_g2_prepared),
-            (&ctx.finals[1], &n_g2_prepared),
-        ])
-        .final_exponentiation()
-        .is_identity(),
-    );
+    if check {
+        let s_g2_prepared = E::G2Prepared::from(params.s_g2);
+        let n_g2_prepared = E::G2Prepared::from(-params.g2);
+        let success = bool::from(
+            E::multi_miller_loop(&[
+                (&ctx.finals[0], &s_g2_prepared),
+                (&ctx.finals[1], &n_g2_prepared),
+            ])
+            .final_exponentiation()
+            .is_identity(),
+        );
 
-    assert!(success);
+        assert!(success);
+    }
 
     tera_context.insert("n_constant_scalars", &ctx.constant_scalars.len());
 
@@ -569,7 +581,7 @@ pub fn solidity_codegen_with_proof<E: MultiMillerLoop>(
     tera_context.insert("msm_w_g_len", &ctx.msm_len[1]);
 
     tera_context.insert("msm_w_x_start", &*TEMP_BUF_MAX);
-    tera_context.insert("msm_w_g_start", &(*TEMP_BUF_MAX + &ctx.msm_len[0] * 3));
+    tera_context.insert("msm_w_g_start", &(*TEMP_BUF_MAX + *MSM_BUF_SIZE));
 
     if SOLIDITY_DEBUG {
         tera_context.insert(
@@ -611,7 +623,7 @@ pub fn solidity_aux_gen_data<E: MultiMillerLoop>(
     proofs: Vec<u8>,
     check: bool,
 ) -> Vec<E::Scalar> {
-    let (w_x, w_g, _) = verify_aggregation_proofs(params, &[vkey]);
+    let (w_x, w_g, _) = verify_aggregation_proofs(params, &[vkey], &vec![]);
 
     let instance_commitments =
         instance_to_instance_commitment(params, &[vkey], vec![&vec![instances.clone()]])[0].clone();

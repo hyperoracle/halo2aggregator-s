@@ -306,7 +306,7 @@ where
     let ctx = Rc::new(RefCell::new(Context::new()));
     let ctx = IntegerContext::<<E::G1Affine as CurveAffine>::Base, E::Scalar>::new(ctx);
     let mut ctx = NativeScalarEccContext::<E::G1Affine>(ctx, 0);
-    let (w_x, w_g, advices) = verify_aggregation_proofs(params, vkey);
+    let (w_x, w_g, advices) = verify_aggregation_proofs(params, vkey, commitment_check);
 
     let instance_commitments = instance_to_instance_commitment(params, vkey, instances.clone());
 
@@ -461,6 +461,7 @@ where
 
     let instances = assigned_instances.iter().map(|x| x.val).collect::<Vec<_>>();
     let ctx: Context<_> = ctx.into();
+    println!("offset {} {} {}", ctx.base_offset, ctx. range_offset, ctx.select_offset);
 
     Ok((
         AggregatorCircuit::new(
